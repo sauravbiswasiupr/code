@@ -164,10 +164,13 @@ def load_data(dataset):
         urllib.urlretrieve(origin, dataset)
 
     print '... loading data'
-
+    #f = open(dataset,'rb')
     # Load the dataset
     f = gzip.open(dataset, 'rb')
+    #using already unzipped but pickled data for the time being 
     train_set, valid_set, test_set = cPickle.load(f)
+    print "Train set inp size "  , train_set[0].shape 
+    print "Train set target size "  , train_set[1].shape 
     f.close()
     #train_set, valid_set, test_set format: tuple(input, target)
     #input is an numpy.ndarray of 2 dimensions (a matrix)

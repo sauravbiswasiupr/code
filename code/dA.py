@@ -29,13 +29,13 @@
    Systems 19, 2007
 
 """
-
+#note that we are finding out the hidden layer representations after the training is complete , we can pass in each input ( flattened ofcourse ) and see what results we get 
 import cPickle
 import gzip
 import os
 import sys
 import time
-
+import h5py 
 import numpy
 
 import theano
@@ -46,7 +46,7 @@ from logistic_sgd import load_data
 from utils import tile_raster_images
 
 import PIL.Image
-
+from data import * 
 
 class dA(object):
     """Denoising Auto-Encoder class (dA)
@@ -73,7 +73,7 @@ class dA(object):
     """
 
     def __init__(self, numpy_rng, theano_rng=None, input=None,
-                 n_visible=784, n_hidden=500,
+                 n_visible=2352, n_hidden=500,
                  W=None, bhid=None, bvis=None):
         """
         Initialize the dA class by specifying the number of visible units (the
@@ -96,7 +96,7 @@ class dA(object):
 
         :type input: theano.tensor.TensorType
         :param input: a symbolic description of the input or None for
-                      standalone dA
+                      standalone dA ( for 256 *  256 ) size images 
 
         :type n_visible: int
         :param n_visible: number of visible units
@@ -163,7 +163,7 @@ class dA(object):
         # if no input is given, generate a variable representing the input
         if input == None:
             # we use a matrix because we expect a minibatch of several
-            # examples, each example being a row
+            # examples, each example being a angry birds row
             self.x = T.dmatrix(name='input')
         else:
             self.x = input
@@ -254,11 +254,24 @@ def test_dA(learning_rate=0.1, training_epochs=15,
     :param dataset: path to the picked dataset
 
     """
-    datasets = load_data(dataset)
+    filename = 'dataset-labels.txt'
+    #filename='sicurambb.differencechannel.whitened.data'
+    
+    print  " Loading " 
+    datasets = load_datafile(filename)
+    print "Dataset loaded successfully " 
     train_set_x, train_set_y = datasets[0]
+    print "Training set size --> inputs : "  , train_set_x.shape 
+    print "Training set size ---> targets : " , train_set_y.shape 
 
+    print "Train : inp :len " , train_set_x
+    print "Train :  inp : len "  , train_set_y 
+    
     # compute number of minibatches for training, validation and testing
+    print "Train set x get value shape 0  " , train_set_x.get_value(borrow=True).shape[0]
+    print "Train set x get value shape 1 " , train_set_x.get_value(borrow=True).shape[1]
     n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
+    print "Number of training batches : " , n_train_batches 
 
     # allocate symbolic variables for the data
     index = T.lscalar()    # index to a [mini]batch
@@ -274,10 +287,10 @@ def test_dA(learning_rate=0.1, training_epochs=15,
     rng = numpy.random.RandomState(123)
     theano_rng = RandomStreams(rng.randint(2 ** 30))
 
-    da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x,
-            n_visible=28 * 28, n_hidden=500)
+    da_no_corrupt = dA(numpy_rng=rng, theano_rng=theano_rng, input=x,
+            n_visible=256 * 256, n_hidden=500)
 
-    cost, updates = da.get_cost_updates(corruption_level=0.,
+    cost, updates = da_no_corrupt.get_cost_updates(corruption_level=0.,
                                         learning_rate=learning_rate)
 
     train_da = theano.function([index], cost, updates=updates,
@@ -307,11 +320,34 @@ def test_dA(learning_rate=0.1, training_epochs=15,
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % ((training_time) / 60.))
     image = PIL.Image.fromarray(
-        tile_raster_images(X=da.W.get_value(borrow=True).T,
-                           img_shape=(28, 28), tile_shape=(10, 10),
+        tile_raster_images(X=da_no_corrupt.W.get_value(borrow=True).T,
+                           img_shape=(256, 256), tile_shape=(10, 10),
                            tile_spacing=(1, 1)))
     image.save('filters_corruption_0.png')
+    weights = da_no_corrupt.W.get_value(borrow=True)
+    weights = numpy.array(weights)
+    print "Weights are :  "  , weights 
+    print "Weight shape is : " , weights.shape
+    # hidden_layer = numpy.array(da.get_hidden_values())
+    #now we have the hidden layer weights as a theano tensor variable , get its values and also the values of each individual training input ( a flattened 256*256 ) dimensional vector and do this for all the training examples 
+    print "Now computing the hidden layer representations for each input image ..." 
+    training_set = train_set_x.get_value(borrow='True')
+    training_set = numpy.array(training_set)
+    bias = numpy.array(da_no_corrupt.b.get_value(borrow='True'))
+    hidden_layer =[]  
+    for x in training_set: 
+     act = numpy.dot(x,weights)+bias 
+     h = 1./(1+numpy.exp(-act))
+     hidden_layer.append(h)
 
+    hidden_rep=numpy.array(hidden_layer) 
+    print "hidden_rep shape :  "  , hidden_rep.shape 
+    print "Hidden layer values :  " , hidden_rep 
+
+    print "Storing the hidden layer values in a file in h5py Format "
+    f= h5py.File('sda_hidden_vals.h5','w')
+    f['dset'] = hidden_rep 
+    ''' 
     #####################################
     # BUILDING THE MODEL CORRUPTION 30% #
     #####################################
@@ -320,7 +356,7 @@ def test_dA(learning_rate=0.1, training_epochs=15,
     theano_rng = RandomStreams(rng.randint(2 ** 30))
 
     da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x,
-            n_visible=28 * 28, n_hidden=500)
+            n_visible=256 * 256, n_hidden=500)
 
     cost, updates = da.get_cost_updates(corruption_level=0.3,
                                         learning_rate=learning_rate)
@@ -354,11 +390,12 @@ def test_dA(learning_rate=0.1, training_epochs=15,
 
     image = PIL.Image.fromarray(tile_raster_images(
         X=da.W.get_value(borrow=True).T,
-        img_shape=(28, 28), tile_shape=(10, 10),
+        img_shape=(256,256), tile_shape=(10, 10),
         tile_spacing=(1, 1)))
-    image.save('filters_corruption_30.png')
+    image.save('filters_corruption_30.png')'''
 
     os.chdir('../')
+    
 
 
 if __name__ == '__main__':

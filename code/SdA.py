@@ -44,6 +44,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 from logistic_sgd import LogisticRegression, load_data
 from mlp import HiddenLayer
 from dA import dA
+from data import *
 
 
 class SdA(object):
@@ -315,9 +316,9 @@ def test_SdA(finetune_lr=0.1, pretraining_epochs=15,
     :param dataset: path the the pickled dataset
 
     """
-
-    datasets = load_data(dataset)
-
+    filename = "dataset-labels.txt" 
+    # datasets = load_data(dataset) # from the logistic_sgd.py file 
+    datasets = load_datafile(filename)
     train_set_x, train_set_y = datasets[0]
     valid_set_x, valid_set_y = datasets[1]
     test_set_x, test_set_y = datasets[2]
@@ -330,7 +331,7 @@ def test_SdA(finetune_lr=0.1, pretraining_epochs=15,
     numpy_rng = numpy.random.RandomState(89677)
     print '... building the model'
     # construct the stacked denoising autoencoder class
-    sda = SdA(numpy_rng=numpy_rng, n_ins=28 * 28,
+    sda = SdA(numpy_rng=numpy_rng, n_ins=256 * 256,
               hidden_layers_sizes=[1000, 1000, 1000],
               n_outs=10)
 

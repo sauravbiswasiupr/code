@@ -36,6 +36,7 @@ from theano.tensor.nnet import conv
 
 from logistic_sgd import LogisticRegression, load_data
 from mlp import HiddenLayer
+from data import *
 
 
 class LeNetConvPoolLayer(object):
@@ -70,7 +71,7 @@ class LeNetConvPoolLayer(object):
         # inputs to each hidden unit
         fan_in = numpy.prod(filter_shape[1:])
         # each unit in the lower layer receives a gradient from:
-        # "num output feature maps * filter height * filter width" /
+        # "num outhttp://www.quora.com/Richard-Feynman/What-are-the-best-Richard-Feynman-anecdotes/answer/Siddharth-Subramanianput feature maps * filter height * filter width" /
         #   pooling size
         fan_out = (filter_shape[0] * numpy.prod(filter_shape[2:]) /
                    numpy.prod(poolsize))
@@ -123,8 +124,8 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
     """
 
     rng = numpy.random.RandomState(23455)
-
-    datasets = load_data(dataset)
+    filename =  'dataset-labels.txt'
+    datasets = load_datafile(filename)
 
     train_set_x, train_set_y = datasets[0]
     valid_set_x, valid_set_y = datasets[1]
